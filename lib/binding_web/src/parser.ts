@@ -3,6 +3,7 @@ import { Language } from './language';
 import { marshalRange, unmarshalRange } from './marshal';
 import { checkModule, initializeBinding } from './bindings';
 import { Tree } from './tree';
+import { Disposable } from './disposable';
 
 /**
  * Options for parsing
@@ -99,6 +100,11 @@ export class Parser {
   /** The parser's current language. */
   language: Language | null = null;
 
+  private disposable = new Disposable((addresses: number[]) => {
+    C._ts_parser_delete(addresses[0]);
+    C._free(addresses[1]);
+  });
+
   /**
    * This must always be called before creating a Parser.
    *
@@ -117,6 +123,7 @@ export class Parser {
    */
   constructor() {
     this.initialize();
+    this.disposable.register(this, [this[0], this[1]]);
   }
 
   /** @internal */
@@ -131,6 +138,7 @@ export class Parser {
 
   /** Delete the parser, freeing its resources. */
   delete() {
+    this.disposable.unregister(this);
     C._ts_parser_delete(this[0]);
     C._free(this[1]);
     this[0] = 0;

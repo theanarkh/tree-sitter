@@ -5,6 +5,7 @@ import { TreeCursor } from './tree_cursor';
 import { marshalEdit, marshalPoint, unmarshalNode, unmarshalRange } from './marshal';
 import { TRANSFER_BUFFER } from './parser';
 import { Edit } from './edit';
+import { Disposable } from './disposable';
 
 /** @internal */
 export function getText(tree: Tree, startIndex: number, endIndex: number, startPosition: Point): string {
@@ -39,12 +40,15 @@ export class Tree {
   /** The language that was used to parse the syntax tree. */
   language: Language;
 
+  private disposable = new Disposable((address: number) => { C._ts_tree_delete(address) });
+
   /** @internal */
   constructor(internal: Internal, address: number, language: Language, textCallback: ParseCallback) {
     assertInternal(internal);
     this[0] = address;
     this.language = language;
     this.textCallback = textCallback;
+    this.disposable.register(this, address);
   }
 
   /** Create a shallow copy of the syntax tree. This is very fast. */
@@ -55,6 +59,7 @@ export class Tree {
 
   /** Delete the syntax tree, freeing its resources. */
   delete(): void {
+    this.disposable.unregister(this);
     C._ts_tree_delete(this[0]);
     this[0] = 0;
   }

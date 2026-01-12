@@ -3,6 +3,7 @@ import { Node } from './node';
 import { marshalNode, unmarshalCaptures } from './marshal';
 import { TRANSFER_BUFFER } from './parser';
 import { Language } from './language';
+import { Disposable } from './disposable';
 
 const PREDICATE_STEP_TYPE_CAPTURE = 1;
 
@@ -546,6 +547,10 @@ export class Query {
   /** The maximum number of in-progress matches for this cursor. */
   matchLimit?: number;
 
+  private disposable = new Disposable((address: number) => {
+    C._ts_query_delete(address);
+  });
+
   /**
    * Create a new query from a string containing one or more S-expression
    * patterns.
@@ -687,10 +692,12 @@ export class Query {
     this.assertedProperties = assertedProperties;
     this.refutedProperties = refutedProperties;
     this.exceededMatchLimit = false;
+    this.disposable.register(this, address);
   }
 
   /** Delete the query, freeing its resources. */
   delete(): void {
+    this.disposable.unregister(this);
     C._ts_query_delete(this[0]);
     this[0] = 0;
   }

@@ -1,5 +1,6 @@
 import { C, Internal, assertInternal } from './constants';
 import { Language } from './language';
+import { Disposable } from './disposable';
 
 export class LookaheadIterator implements Iterable<string> {
   /** @internal */
@@ -8,11 +9,16 @@ export class LookaheadIterator implements Iterable<string> {
   /** @internal */
   private language: Language;
 
+  private disposable = new Disposable((address: number) => {
+    C._ts_lookahead_iterator_delete(address);
+  });
+  
   /** @internal */
   constructor(internal: Internal, address: number, language: Language) {
     assertInternal(internal);
     this[0] = address;
     this.language = language;
+    this.disposable.register(this, address);
   }
 
   /** Get the current symbol of the lookahead iterator. */
@@ -27,6 +33,7 @@ export class LookaheadIterator implements Iterable<string> {
 
   /** Delete the lookahead iterator, freeing its resources. */
   delete(): void {
+    this.disposable.unregister(this);
     C._ts_lookahead_iterator_delete(this[0]);
     this[0] = 0;
   }

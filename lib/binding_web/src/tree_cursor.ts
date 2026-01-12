@@ -3,6 +3,7 @@ import { marshalNode, marshalPoint, marshalTreeCursor, unmarshalNode, unmarshalP
 import { Node } from './node';
 import { TRANSFER_BUFFER } from './parser';
 import { getText, Tree } from './tree';
+import { Disposable } from './disposable';
 
 /** A stateful object for walking a syntax {@link Tree} efficiently. */
 export class TreeCursor {
@@ -25,11 +26,16 @@ export class TreeCursor {
   /** @internal */
   private tree: Tree;
 
+  private disposable = new Disposable((address: number) => {
+    C._ts_tree_cursor_delete_wasm(address);
+  });
+
   /** @internal */
   constructor(internal: Internal, tree: Tree) {
     assertInternal(internal);
     this.tree = tree;
     unmarshalTreeCursor(this);
+    this.disposable.register(this, this.tree[0]);
   }
 
   /** Creates a deep copy of the tree cursor. This allocates new memory. */
@@ -42,6 +48,7 @@ export class TreeCursor {
 
   /** Delete the tree cursor, freeing its resources. */
   delete(): void {
+    this.disposable.unregister(this);
     marshalTreeCursor(this);
     C._ts_tree_cursor_delete_wasm(this.tree[0]);
     this[0] = this[1] = this[2] = 0;
